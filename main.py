@@ -12,8 +12,8 @@ app = FastAPI()
 # --- 1. Security: Enable CORS for your website ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://scprefrigeration.coepi.co", "http://localhost:5173"],
-    allow_methods=["POST"],
+    allow_origins=["https://scprefrigeration.coepi.co", "http://localhost:5173", "http://fcsog8800kcksss4840oogww.154.12.252.28.sslip.io"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
