@@ -56,8 +56,24 @@ async def handle_application(
             fields='id, webViewLink',
             supportsAllDrives=True # <--- ADD THIS
         ).execute()
-        
+
+        file_id = drive_file.get('id')
         resume_url = drive_file.get('webViewLink')
+
+        # --- ADD THIS BLOCK TO FIX THE QUOTA ISSUE ---
+        # This transfers the "Storage Billing" to your main account
+        user_permission = {
+            'type': 'user',
+            'role': 'owner',
+            'emailAddress': 'coepi.automation@gmail.com' # <--- PUT YOUR EMAIL HERE
+        }
+        drive_service.permissions().create(
+            fileId=file_id,
+            body=user_permission,
+            transferOwnership=True,
+            supportsAllDrives=True
+        ).execute()
+        
 
         # 5. Ping n8n with clean JSON
         n8n_payload = {
