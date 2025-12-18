@@ -21,7 +21,7 @@ app.add_middleware(
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")
 DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID")
 # This will be the content of your service_account.json
-GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON") 
+GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON")
 
 @app.post("/apply")
 async def handle_application(
