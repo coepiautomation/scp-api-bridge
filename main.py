@@ -49,12 +49,14 @@ async def handle_application(
         # ADD THIS LINE to the create() call below:
         # supportsAllDrives=True 
         
-        media = MediaIoBaseUpload(resume.file, mimetype=resume.content_type, resumable=True)
+        media = MediaIoBaseUpload(resume.file, mimetype=resume.content_type) # Remove resumable=True
         drive_file = drive_service.files().create(
             body=file_metadata, 
             media_body=media, 
             fields='id, webViewLink',
-            supportsAllDrives=True # <--- ADD THIS
+            supportsAllDrives=True,
+            # This is the secret sauce: keep the file "hidden" until permissions are set
+            keepRevisionForever=False 
         ).execute()
 
         file_id = drive_file.get('id')
