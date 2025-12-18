@@ -40,18 +40,21 @@ async def handle_application(
         )
         drive_service = build('drive', 'v3', credentials=creds)
 
-        # 4. Upload File to Drive
+# 4. Upload File to Drive
         file_metadata = {
             'name': f"RESUME_{name.replace(' ', '_')}",
             'parents': [DRIVE_FOLDER_ID]
         }
         
-        # Stream the file directly to Google (No RAM hogging)
+        # ADD THIS LINE to the create() call below:
+        # supportsAllDrives=True 
+        
         media = MediaIoBaseUpload(resume.file, mimetype=resume.content_type, resumable=True)
         drive_file = drive_service.files().create(
             body=file_metadata, 
             media_body=media, 
-            fields='id, webViewLink'
+            fields='id, webViewLink',
+            supportsAllDrives=True # <--- ADD THIS
         ).execute()
         
         resume_url = drive_file.get('webViewLink')
