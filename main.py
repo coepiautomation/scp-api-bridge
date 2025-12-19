@@ -1,27 +1,19 @@
 import os
 import requests
+import base64
 from fastapi import FastAPI, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
-import io
 
 app = FastAPI()
 
-# --- 1. Security: Enable CORS for your website ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://scprefrigeration.coepi.co", "http://localhost:5173", "http://fcsog8800kcksss4840oogww.154.12.252.28.sslip.io"],
-    allow_methods=["*"],
+    allow_origins=["https://scprefrigeration.coepi.co", "http://localhost:5173"],
+    allow_methods=["POST"],
     allow_headers=["*"],
 )
 
-# --- 2. Configuration (Use Environment Variables in Coolify) ---
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")
-DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID")
-# This will be the content of your service_account.json
-GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDS_JSON")
 
 @app.post("/apply")
 async def handle_application(
@@ -34,64 +26,28 @@ async def handle_application(
     resume: UploadFile = None
 ):
     try:
-        # 3. Authenticate with Google
-        creds = service_account.Credentials.from_service_account_info(
-            eval(GOOGLE_CREDS_JSON)
-        )
-        drive_service = build('drive', 'v3', credentials=creds)
+        # 1. Read the file and convert to Base64 string
+        file_content = await resume.read()
+        base64_file = base64.b64encode(file_content).decode('utf-8')
 
-# 4. Upload File to Drive
-        file_metadata = {
-            'name': f"RESUME_{name.replace(' ', '_')}",
-            'parents': [DRIVE_FOLDER_ID]
-        }
-        
-        # ADD THIS LINE to the create() call below:
-        # supportsAllDrives=True 
-        
-        media = MediaIoBaseUpload(resume.file, mimetype=resume.content_type) # Remove resumable=True
-        drive_file = drive_service.files().create(
-            body=file_metadata, 
-            media_body=media, 
-            fields='id, webViewLink',
-            supportsAllDrives=True,
-            # This is the secret sauce: keep the file "hidden" until permissions are set
-            keepRevisionForever=False 
-        ).execute()
-
-        file_id = drive_file.get('id')
-        resume_url = drive_file.get('webViewLink')
-
-        # --- ADD THIS BLOCK TO FIX THE QUOTA ISSUE ---
-        # This transfers the "Storage Billing" to your main account
-        user_permission = {
-            'type': 'user',
-            'role': 'owner',
-            'emailAddress': 'coepi.automation@gmail.com' # <--- PUT YOUR EMAIL HERE
-        }
-        drive_service.permissions().create(
-            fileId=file_id,
-            body=user_permission,
-            transferOwnership=True,
-            supportsAllDrives=True
-        ).execute()
-        
-
-        # 5. Ping n8n with clean JSON
-        n8n_payload = {
+        # 2. Package everything into a JSON payload
+        payload = {
             "name": name,
             "email": email,
             "phone": phone,
             "position": position,
             "experience": experience,
             "message": message,
-            "resume_url": resume_url,
-            "submitted_at": str(os.getenv("COOLIFY_DEPLOYED_AT", "just now"))
+            "file_base64": base64_file,
+            "file_name": f"RESUME_{name.replace(' ', '_')}.pdf",
+            "file_mime": resume.content_type
         }
         
-        requests.post(N8N_WEBHOOK_URL, json=n8n_payload)
+        # 3. Ship it to n8n
+        response = requests.post(N8N_WEBHOOK_URL, json=payload)
+        response.raise_for_status()
 
-        return {"status": "success", "message": "Application processed"}
+        return {"status": "success", "message": "Application forwarded to n8n"}
 
     except Exception as e:
         print(f"Error: {e}")
